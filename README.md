@@ -24,13 +24,14 @@ loop = asyncio.get_event_loop()
 conn = loop.run_until_complete(asyncpg.create_pool())
 
 class Database(metaclass=pgSQLwrapper(conn)):
-    def fetch(self):  # branding `async def` is optional
+    # prefix meth with fetch or execute
+    def fetch_stats(self, limit):  # branding `async def` is optional
         """SELECT *
         FROM table
-        LIMIT 1
+        LIMIT $1
         """
 
 db = Database()
 
-print(loop.run_until_complete(db.fetch()))
+print(loop.run_until_complete(db.fetch_stats(limit=2)))
 ```
