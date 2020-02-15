@@ -1,32 +1,38 @@
 import inspect
+from functools import wraps
 
 
-def func_generator(name, request, query, parameters):
-    if inspect.iscoroutinefunction(request):
-        async def wrapper(self, *args):
-            return await request(query, *args)
-    else:
-        def wrapper(self, *args):
-            return request(query, *args)
+def func_generator(name, request, query, func):
+    @wraps(func)
+    async def wrapper(self, *args):
+        return await request(query, *args)
     return wrapper
+
+
+def startswith_any(string, starters):
+    for i in starters:
+        if string.startswith(i):
+            return i
 
 
 def pgSQLwrapper(conn):
     class _SQLHandler(type):
+        binders = {
+            'fetch': conn.fetch,
+            'execute': conn.execute}
+
         def __new__(cls, name, bases, attrs):
             if name.startswith('None'):
                 return
+
             for attrname, attrvalue in attrs.items():
                 if attrname.startswith('_'):
                     continue
 
                 query = attrvalue.__doc__
-                parameters = attrvalue.__code__.co_varnames[:attrvalue.__code__.co_argcount]
+                caller = cls.binders[startswith_any(attrname, cls.binders.keys())]
 
-                if query.startswith('SELECT'):
-                    attrs[attrname] = func_generator(attrname, conn.fetch, query, parameters)
-                else:
-                    attrs[attrname] = func_generator(attrname, conn.execute, query, parameters)
+                attrs[attrname] = func_generator(attrname, caller, query, attrvalue)
 
             return super().__new__(cls, name, bases, attrs)
 
