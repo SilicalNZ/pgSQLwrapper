@@ -23,6 +23,20 @@ from pgSQLwrapper import pgSQLwrapper
 loop = asyncio.get_event_loop()
 conn = loop.run_until_complete(asyncpg.create_pool())
 
+
+# Without package
+class Database():
+    def __init__(self, conn):
+        self.conn = conn
+
+    async def fetch_stats(self, limit): 
+        query = """SELECT *
+                FROM table
+                LIMIT $1
+        """
+        return await self.conn.exeute(query, limit)
+
+# With package
 class Database(metaclass=pgSQLwrapper()):
     def __init__(self, conn):
         self.conn = conn
@@ -35,6 +49,5 @@ class Database(metaclass=pgSQLwrapper()):
         """
 
 db = Database()
-
 print(loop.run_until_complete(db.fetch_stats(limit=2)))
 ```
