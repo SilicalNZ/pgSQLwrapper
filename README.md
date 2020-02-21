@@ -23,7 +23,10 @@ from pgSQLwrapper import pgSQLwrapper
 loop = asyncio.get_event_loop()
 conn = loop.run_until_complete(asyncpg.create_pool())
 
-class Database(metaclass=pgSQLwrapper(conn)):
+class Database(metaclass=pgSQLwrapper()):
+    def __init__(self, conn):
+        self.conn = conn
+
     # prefix meth with fetch or execute
     def fetch_stats(self, limit):  # branding `async def` is optional
         """SELECT *
