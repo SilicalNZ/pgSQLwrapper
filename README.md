@@ -48,6 +48,6 @@ class Database(metaclass=pgSQLwrapper()):
         LIMIT $1
         """
 
-db = Database()
+db = Database(conn)
 print(loop.run_until_complete(db.fetch_stats(limit=2)))
 ```
