@@ -3,13 +3,10 @@ from functools import wraps
 
 
 def func_generator(name, request, query, func):
-    asyncpg_meth = None
     @wraps(func)
     async def wrapper(self, *args):
-        nonlocal asyncpg_meth
-        if asyncpg_meth is None:
-            conn = getattr(self, 'conn')
-            asyncpg_meth = getattr(conn, request)
+        conn = getattr(self, 'conn')
+        asyncpg_meth = getattr(conn, request)
         return await asyncpg_meth(query, *args)
     return wrapper
 
