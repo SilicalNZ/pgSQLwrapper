@@ -1,1 +1,1 @@
-from .magic import pgSQLwrapper
+from .magic import pgSQLwrapper, decorator

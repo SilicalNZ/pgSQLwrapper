@@ -2,13 +2,27 @@ import inspect
 from functools import wraps
 
 
-def func_generator(name, request, query, func):
-    @wraps(func)
-    async def wrapper(self, *args):
-        conn = getattr(self, 'conn')
-        asyncpg_meth = getattr(conn, request)
-        return await asyncpg_meth(query, *args)
-    return wrapper
+def decorator(db_request=None):
+    def funky(func):
+        nonlocal db_request
+        if db_request is None:
+            db_request = func.__name__.split('_')[0]
+
+        query = func.__doc__
+
+        asyncpg_meth = None
+        @wraps(func)
+        async def wrapper(self_or_conn, *args):
+            nonlocal asyncpg_meth
+            if asyncpg_meth is None:
+                try:
+                    conn = getattr(self_or_conn, 'conn')
+                except AttributeError:
+                    conn = self_or_conn
+                asyncpg_meth = getattr(conn, db_request)
+            return await asyncpg_meth(query, *args)
+        return wrapper
+    return funky
 
 
 def startswith_any(string, starters):
@@ -38,7 +52,7 @@ def pgSQLwrapper(binders=None):
                 query = attrvalue.__doc__
                 request = binders[startswith_any(attrname, binders.keys())]
 
-                attrs[attrname] = func_generator(attrname, request, query, attrvalue)
+                attrs[attrname] = decorator(db_request=request)(attrvalue)
 
             return super().__new__(cls, name, bases, attrs)
 
