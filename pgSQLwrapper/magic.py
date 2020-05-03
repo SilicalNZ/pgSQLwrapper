@@ -48,9 +48,9 @@ class pgSQLwrapper(type):
             if attrname.startswith('_'):
                 continue
 
-                query = attrvalue.__doc__
+            query = attrvalue.__doc__
+            if startswith_any(attrname, binders.keys()):
                 request = binders[startswith_any(attrname, binders.keys())]
-
                 attrs[attrname] = decorator(db_request=request)(attrvalue)
 
         return super().__new__(cls, name, bases, attrs)
