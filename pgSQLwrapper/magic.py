@@ -31,32 +31,29 @@ def startswith_any(string, starters):
             return i
 
 
-def pgSQLwrapper(binders=None):
-    """
-    :param binders: Customize method prefixes
-    """
-    if binders is None:
-        binders = {
-            'fetch': 'fetch',
-            'execute': 'execute'}
+class pgSQLwrapper(type):
+    '''binders is
+    :param binders or binder: An optional class parameter.
+        Tells the metaclass how to identify valid conversion by method prefixes
+    '''
+    def __new__(cls, name, bases, attrs):
+        if name.startswith('None'):
+            return
 
-    class _SQLHandler(type):
-        def __new__(cls, name, bases, attrs):
-            if name.startswith('None'):
-                return
+        binders = attrs.get('binders', None) \
+                  or attrs.get('binder', None) \
+                  or {'fetch': 'fetch', 'execute': 'execute'}
 
-            for attrname, attrvalue in attrs.items():
-                if attrname.startswith('_'):
-                    continue
+        for attrname, attrvalue in attrs.items():
+            if attrname.startswith('_'):
+                continue
 
                 query = attrvalue.__doc__
                 request = binders[startswith_any(attrname, binders.keys())]
 
                 attrs[attrname] = decorator(db_request=request)(attrvalue)
 
-            return super().__new__(cls, name, bases, attrs)
+        return super().__new__(cls, name, bases, attrs)
 
-        def __init__(self, name, bases, attrs):
-            super().__init__(name, bases, attrs)
-
-    return _SQLHandler
+    def __init__(self, name, bases, attrs):
+        super().__init__(name, bases, attrs)
