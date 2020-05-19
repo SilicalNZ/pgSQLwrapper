@@ -12,11 +12,12 @@ def random_id():
 
 
 class Column:
-    def __init__(self, name, extra_stuff='', primary_key=False, references=''):
+    def __init__(self, name, extra_stuff='', primary_key=False, references='', identifier=False):
         self.name = name
         self.references = references
         self.primary_key = primary_key
         self.extra_stuff = extra_stuff
+        self.identifier = identifier
 
         if self.primary_key:
             self.extra_stuff += 'PRIMARY KEY'
@@ -76,17 +77,25 @@ class Generate:
         def execute_insert(self, *args):
             pass
 
+        identifiers = [i.name for i in columns if i.primary_key]
+        non_identifiers = [i.name for i in columns if not i.primary_key]
         query = (
             f'WITH {random_id()} as (\n'
             f'    INSERT INTO {table_name}(\n' 
-            f'    {", ".join([i.name for i in columns if not i.primary_key])})\n'
-            f'    VALUES(${", $".join(map(str, range(1, len(columns))))}))'
+            f'    {", ".join(non_identifiers)})\n'
+            f'    VALUES(${", $".join(map(str, range(1, len(non_identifiers) + 1)))}))'
         )
+        if identifiers:
+            query = query[:-1] + f'\n    RETURNING {", ".join(identifiers)})'
         execute_insert.__doc__ = query
         return execute_insert
 
     @classmethod
-    def merge(merge, query, other_query):
+    def delete(cls, table_name, columns):
+        pass
+
+    @classmethod
+    def merge(merge, query, other_query, table):
         query = (
             f'{query.__doc__},\n'
             f'{other_query.__doc__.replace("WITH ", "")}'
@@ -94,22 +103,26 @@ class Generate:
         other_query.__doc__ = query
 
 
-
-
 class _pgSQLgenerator(pgSQLwrapper):
     def __new__(cls, name, bases, attrs):
         if name.startswith('None'):
             return
+        print(bases)
         if name.startswith('Table'):
             return super().__new__(cls, name, bases, attrs)
+
+        if bases[0] is Table:
+            for column in attrs['columns']:
+                if column.identifier:
+                    attrs['_identifier'] = column.name
 
         attrs['execute_create_table'] = Generate.create_table(attrs['name'], attrs['columns'])
         attrs['execute_insert'] = Generate.insert(attrs['name'], attrs['columns'])
 
-        if len(bases) > 1:
-            ocls = bases[-1]
-            Generate.merge(getattr(ocls, 'execute_create_table'), attrs['execute_create_table'])
-            Generate.merge(getattr(ocls, 'execute_insert'), attrs['execute_insert'])
+        if bases and bases[0] is not Table:
+            ocls = bases[0]
+            Generate.merge(getattr(ocls, 'execute_create_table'), attrs['execute_create_table'], ocls)
+            Generate.merge(getattr(ocls, 'execute_insert'), attrs['execute_insert'], ocls)
 
 
         return super().__new__(cls, name, bases, attrs)
@@ -127,12 +140,15 @@ class Table(metaclass=_pgSQLgenerator):
     def execute_insert(self):
         raise NotImplemented()
 
+    def exectute_delete(self):
+        raise NotImplemented()
+
 
 
 if __name__ == '__main__':
     class Score(Table):
         columns = [
-            Integer('id', primary_key=True),
+            Integer('id', primary_key=True, identifier=True),
             Integer('author', references='users'),
             Text('build_name'),
             Integer('shield', references='variation'),
