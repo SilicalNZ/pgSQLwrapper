@@ -22,26 +22,20 @@ def auto_joiner(func):
     return wrapper
 
 
-class ColumnName(type):
-    @property
-    def _column_name(cls):
-        return cls.__name__.lower()
-
-
-class Column(metaclass=ColumnName):
+class Column:
     def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
         self.UNIQUE = UNIQUE
         self.PRIMARY_KEY = PRIMARY_KEY
-        self.DEFAULT = False
+        self.DEFAULT = DEFAULT
         self.REFERENCES = REFERENCES
         self._table_name = None
 
     @auto_joiner
     def _parsed_string(self):
-        string = [self.__column_name,
+        string = [self.__class__._column_name(),
             "PRIMARY KEY" if self.PRIMARY_KEY else None,
             "UNIQUE" if self.UNIQUE else None,
-            f"DEFAULT {self.DEFAULT}" if self.DEFAULT != None else None
+            f"DEFAULT {self.DEFAULT}" if self.DEFAULT is not None else None
             ]
         return string
 
@@ -51,11 +45,15 @@ class Column(metaclass=ColumnName):
 
     @auto_joiner
     def _parsed_reference(self):
-        column_name = self._column_name if not hasattr(self, '_on_reference') else self._on_reference._column_name
+        column_name = self._column_name() if not hasattr(self, '_on_reference') else self._on_reference._column_name()
         string = [column_name,
             f"REFERENCES {self._table_name._table_name}"
             ]
         return string
+
+    @classmethod
+    def _column_name(cls):
+        return cls.__name__.lower()
 
 
 class Text(Column):
