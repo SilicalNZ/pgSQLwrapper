@@ -12,25 +12,19 @@ def random_id():
 
 
 class Column:
-    def __init__(self, name, extra_stuff='', primary_key=False, references='', identifier=False):
-        self.name = name
-        self.references = references
-        self.primary_key = primary_key
-        self.extra_stuff = extra_stuff
-        self.identifier = identifier
+    def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
+        self.UNIQUE = UNIQUE
+        self.PRIMARY_KEY = PRIMARY_KEY
+        self.DEFAULT = False
 
-        if self.primary_key:
-            self.extra_stuff += 'PRIMARY KEY'
+    def _parsed_string(self):
+        string = [self.__class__.__name__.lower(),
+         "PRIMARY KEY" if self.PRIMARY_KEY else None,
+         "UNIQUE" if self.UNIQUE else None,
+         f"DEFAULT {self.DEFAULT}" if self.DEFAULT != None else None]
+        string = filter(lambda x: x != None, string)
+        return ' '.join(string)
 
-    @property
-    def invertor(self):
-        return self.convertor
-
-    def parsed_string(self):
-        string = f'{self.name} {self.__class__.__name__}'
-        string += f' {self.extra_stuff}' if self.extra_stuff else ''
-        string += ' references ' + self.references if self.references else ''
-        return string
 
 
 class Text(Column):
@@ -54,6 +48,10 @@ class BigInt(Integer):
 
 
 class Serial(Column):
+    pass
+
+
+class Boolean(Column):
     pass
 
 
@@ -104,28 +102,6 @@ class Generate:
 
 
 class _pgSQLgenerator(pgSQLwrapper):
-    def __new__(cls, name, bases, attrs):
-        if name.startswith('None'):
-            return
-        print(bases)
-        if name.startswith('Table'):
-            return super().__new__(cls, name, bases, attrs)
-
-        if bases[0] is Table:
-            for column in attrs['columns']:
-                if column.identifier:
-                    attrs['_identifier'] = column.name
-
-        attrs['execute_create_table'] = Generate.create_table(attrs['name'], attrs['columns'])
-        attrs['execute_insert'] = Generate.insert(attrs['name'], attrs['columns'])
-
-        if bases and bases[0] is not Table:
-            ocls = bases[0]
-            Generate.merge(getattr(ocls, 'execute_create_table'), attrs['execute_create_table'], ocls)
-            Generate.merge(getattr(ocls, 'execute_insert'), attrs['execute_insert'], ocls)
-
-
-        return super().__new__(cls, name, bases, attrs)
 
     @classmethod
     async def create_pool(cls, **credentials):
@@ -134,6 +110,10 @@ class _pgSQLgenerator(pgSQLwrapper):
 
 
 class Table(metaclass=_pgSQLgenerator):
+    def __init__(self, conn):
+        self.__conn = conn
+        self.conn = self.__conn
+
     def execute_create_table(self):
         raise NotImplemented()
 
@@ -145,38 +125,59 @@ class Table(metaclass=_pgSQLgenerator):
 
 
 
-if __name__ == '__main__':
-    class Score(Table):
-        columns = [
-            Integer('id', primary_key=True, identifier=True),
-            Integer('author', references='users'),
-            Text('build_name'),
-            Integer('shield', references='variation'),
-            Integer('ship', references='variation'),
-            Integer('weapon', references='variation'),
-            Integer('score'),
-            Integer('time'),
-            Text('seed')
-        ]
 
-        name = 'score'
+if __name__ == '__main__':
+    class User(Table):
+        id = Serial(PRIMARY_KEY=True)
+        name = Text()
+        platform_id = Text()
+        platform = Text()
+        blocked = Boolean(DEFAULT=False)
+
+
+    class Variation(Table):
+        id = Serial(PRIMARY_KEY=True)
+        name = Text(UNIQUE=True)
+        theme = Integer
+        blocked = Boolean(DEFAULT=False)
+
+
+    class Score(Table):
+        id = Integer()
+        author = Integer()
+        build_name = Text()
+        shield = Variation.id
+        ship = Variation.id
+        weapon = Variation.id
+        score = Integer()
+        time = Integer()
+        seed = Text()
 
 
     class ScoreStat(Score):
-        columns = [
-            Integer('id', references='score'),
-            Integer('average_damage'),
-            Integer('time_elapsed'),
-            Integer('highest_damage'),
-            SmallInt('wave_reached'),
-            Integer('distance_reached'),
-            Integer('total_damage'),
-            Integer('damage_taken'),
-            SmallInt('level_reached')
-        ]
+        id = Score.id
+        average_damage = Integer()
+        time_elapsed = Integer()
+        highest_damage = Integer()
+        wave_reached = SmallInt()
+        distance_reached = Integer()
+        total_damage = Integer()
+        damage_taken = Integer()
+        level_reached = SmallInt()
 
-        name = 'score_stats'
 
-    t = ScoreStat()
+    class ScoreVariation(ScoreStat, Variation):
+        id = Score.id
+        mods = Variation.id
+        ordering = Integer()
 
-    print(t.execute_insert.__doc__)
+
+    print(ScoreVariation.id._parsed_string())
+
+
+
+"""
+Parent lookup to find references
+
+
+"""
