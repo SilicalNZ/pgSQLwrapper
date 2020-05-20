@@ -1,6 +1,7 @@
 from datetime import datetime
 import time
 import random
+from functools import wraps
 
 from pgSQLwrapper.magic import decorator, pgSQLwrapper
 
@@ -11,20 +12,50 @@ def random_id():
     return y
 
 
-class Column:
+def auto_joiner(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        string = func(*args, **kwargs)
+        string = filter(lambda x: x != None, string)
+        return ' '.join(string)
+
+    return wrapper
+
+
+class ColumnName(type):
+    @property
+    def _column_name(cls):
+        return cls.__name__.lower()
+
+
+class Column(metaclass=ColumnName):
     def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
         self.UNIQUE = UNIQUE
         self.PRIMARY_KEY = PRIMARY_KEY
         self.DEFAULT = False
+        self.REFERENCES = REFERENCES
+        self._table_name = None
 
+    @auto_joiner
     def _parsed_string(self):
-        string = [self.__class__.__name__.lower(),
-         "PRIMARY KEY" if self.PRIMARY_KEY else None,
-         "UNIQUE" if self.UNIQUE else None,
-         f"DEFAULT {self.DEFAULT}" if self.DEFAULT != None else None]
-        string = filter(lambda x: x != None, string)
-        return ' '.join(string)
+        string = [self.__column_name,
+            "PRIMARY KEY" if self.PRIMARY_KEY else None,
+            "UNIQUE" if self.UNIQUE else None,
+            f"DEFAULT {self.DEFAULT}" if self.DEFAULT != None else None
+            ]
+        return string
 
+    def __get__(self, instance, owner):
+        self._table_name = owner if self._table_name is None else self._table_name
+        return self
+
+    @auto_joiner
+    def _parsed_reference(self):
+        column_name = self._column_name if not hasattr(self, '_on_reference') else self._on_reference._column_name
+        string = [column_name,
+            f"REFERENCES {self._table_name._table_name}"
+            ]
+        return string
 
 
 class Text(Column):
@@ -48,6 +79,7 @@ class BigInt(Integer):
 
 
 class Serial(Column):
+    _on_reference = Integer
     pass
 
 
@@ -102,6 +134,9 @@ class Generate:
 
 
 class _pgSQLgenerator(pgSQLwrapper):
+    def __new__(cls, name, bases, attrs):
+        attrs['_table_name'] = name.lower()
+        return super().__new__(cls, name, bases, attrs)
 
     @classmethod
     async def create_pool(cls, **credentials):
@@ -172,7 +207,7 @@ if __name__ == '__main__':
         ordering = Integer()
 
 
-    print(ScoreVariation.id._parsed_string())
+    print(Score.shield._parsed_reference())
 
 
 
