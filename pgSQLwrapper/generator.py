@@ -28,10 +28,13 @@ class Column:
         self.PRIMARY_KEY = PRIMARY_KEY
         self.DEFAULT = DEFAULT
         self.REFERENCES = REFERENCES
-        self._table_name = None
+        self._column_owner = None
 
     @auto_joiner
     def _parsed_string(self):
+        if self._column_owner == self.__class__:
+            return self._parsed_reference
+
         string = [self.__class__._column_name(),
             "PRIMARY KEY" if self.PRIMARY_KEY else None,
             "UNIQUE" if self.UNIQUE else None,
@@ -40,14 +43,14 @@ class Column:
         return string
 
     def __get__(self, instance, owner):
-        self._table_name = owner if self._table_name is None else self._table_name
+        self._column_owner = owner if self._column_owner is None else self._column_owner
         return self
 
     @auto_joiner
     def _parsed_reference(self):
         column_name = self._column_name() if not hasattr(self, '_on_reference') else self._on_reference._column_name()
         string = [column_name,
-            f"REFERENCES {self._table_name._table_name}"
+            f"REFERENCES {self._column_owner._table_name}"
             ]
         return string
 
