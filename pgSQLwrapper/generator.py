@@ -31,9 +31,9 @@ class Column:
         self._column_owner = None
 
     @auto_joiner
-    def _parsed_string(self):
-        if self._column_owner == self.__class__:
-            return self._parsed_reference
+    def parsed_string(self):
+        if self._column_owner is not None:
+            return self._parsed_reference()
 
         string = [self.__class__._column_name(),
             "PRIMARY KEY" if self.PRIMARY_KEY else None,
@@ -46,7 +46,6 @@ class Column:
         self._column_owner = owner if self._column_owner is None else self._column_owner
         return self
 
-    @auto_joiner
     def _parsed_reference(self):
         column_name = self._column_name() if not hasattr(self, '_on_reference') else self._on_reference._column_name()
         string = [column_name,
@@ -89,15 +88,42 @@ class Boolean(Column):
 
 
 class Generate:
+    def __init__(self, table_name, columns):
+        self.table_name = table_name
+        self.columns = columns
+
+    def _wrapper_with(self):
+        return f'WITH {func()}'
+
+    def _wrapper_as(self, func):
+        return f'{self.table_name} as ({func()})'
+
+    def _core_columns(self, joiner):
+        return joiner.join([f"{key} {value.parsed_string()}" for key, value in self.columns.items()])
+
+    def _core_create_table(self):
+        columns = self._core_columns(",\n    ")
+        return (
+            f'CREATE TABLE IF NOT EXISTS {self.table_name}('
+            f'\n    {columns})'
+        )
+
+    def gen_create_table(self):
+        def execute_create_table(self):
+            pass
+        execute_create_table.__doc__ = self._core_create_table()
+        return execute_create_table
+
     @classmethod
     def create_table(cls, table_name, columns):
         def execute_create_table(self):
             pass
 
+        columns = ",\n".join([i.parsed_string() for i in columns])
         query = (
             f'WITH {random_id()} as (\n'
             f'    CREATE TABLE IF NOT EXISTS {table_name}(\n'
-            f'    {", ".join([i.parsed_string() for i in columns])}))'
+            f'    {columns}))'
         )
 
         execute_create_table.__doc__ = query
@@ -135,8 +161,14 @@ class Generate:
 
 
 class _pgSQLgenerator(pgSQLwrapper):
-    def __new__(cls, name, bases, attrs):
-        attrs['_table_name'] = name.lower()
+    def __new__(cls, name, bases, attrs, **kwargs):
+        attrs['_table_name'] = name.lower() if 'table_name' not in kwargs else kwargs['table_name']
+
+        columns = {key: value for key, value in attrs.items() if issubclass(value.__class__, Column)}
+
+        generator = Generate(attrs['_table_name'], columns)
+        attrs['execute_create_table'] = generator.gen_create_table()
+
         return super().__new__(cls, name, bases, attrs)
 
     @classmethod
@@ -179,7 +211,7 @@ if __name__ == '__main__':
 
 
     class Score(Table):
-        id = Integer()
+        id = Serial()
         author = Integer()
         build_name = Text()
         shield = Variation.id
@@ -208,7 +240,7 @@ if __name__ == '__main__':
         ordering = Integer()
 
 
-    print(Score.shield._parsed_reference())
+    print(Score(None).execute_create_table.__doc__)
 
 
 
