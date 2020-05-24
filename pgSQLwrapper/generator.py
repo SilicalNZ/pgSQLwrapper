@@ -115,21 +115,6 @@ class Generate:
         return execute_create_table
 
     @classmethod
-    def create_table(cls, table_name, columns):
-        def execute_create_table(self):
-            pass
-
-        columns = ",\n".join([i.parsed_string() for i in columns])
-        query = (
-            f'WITH {random_id()} as (\n'
-            f'    CREATE TABLE IF NOT EXISTS {table_name}(\n'
-            f'    {columns}))'
-        )
-
-        execute_create_table.__doc__ = query
-        return execute_create_table
-
-    @classmethod
     def insert(cls, table_name, columns):
         def execute_insert(self, *args):
             pass
