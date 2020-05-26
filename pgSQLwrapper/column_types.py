@@ -21,9 +21,9 @@ class Column:
         self._column_owner = None
 
     @auto_joiner
-    def parsed_string(self):
+    def table_create(self):
         if self._column_owner is not None:
-            return self._parsed_reference()
+            return self.table_create_referenced()
 
         string = [self.__class__._column_name(),
             "PRIMARY KEY" if self.PRIMARY_KEY else None,
@@ -36,7 +36,7 @@ class Column:
         self._column_owner = owner if self._column_owner is None else self._column_owner
         return self
 
-    def _parsed_reference(self):
+    def table_create_referenced(self):
         column_name = self._column_name() if not hasattr(self, '_on_reference') else self._on_reference._column_name()
         string = [column_name,
             f"REFERENCES {self._column_owner._table_name}"

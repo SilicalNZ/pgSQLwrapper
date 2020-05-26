@@ -23,7 +23,7 @@ class Generate:
         return f'{self.table_name} as ({func()})'
 
     def _core_columns(self, joiner):
-        return joiner.join([f"{key} {value.parsed_string()}" for key, value in self.columns.items()])
+        return joiner.join([f"{key} {value.table_create()}" for key, value in self.columns.items()])
 
     def _core_create_table(self):
         columns = self._core_columns(",\n    ")
