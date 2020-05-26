@@ -1,3 +1,17 @@
+from functools import wraps
+from datetime import datetime
+
+
+def auto_joiner(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        string = func(*args, **kwargs)
+        string = filter(lambda x: x != None, string)
+        return ' '.join(string)
+
+    return wrapper
+
+
 class Column:
     def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
         self.UNIQUE = UNIQUE

@@ -1,7 +1,5 @@
-from datetime import datetime
 import time
 import random
-from functools import wraps
 
 from pgSQLwrapper.sql_from_docstring import decorator, pgSQLwrapper
 from pgSQLwrapper.column_types import *
@@ -11,16 +9,6 @@ def random_id():
     random.shuffle(y)
     y = int(''.join(y))
     return y
-
-
-def auto_joiner(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        string = func(*args, **kwargs)
-        string = filter(lambda x: x != None, string)
-        return ' '.join(string)
-
-    return wrapper
 
 
 class Generate:
