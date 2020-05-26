@@ -1,1 +1,1 @@
-from .magic import pgSQLwrapper, decorator
+from .sql_from_docstring import pgSQLwrapper, decorator
