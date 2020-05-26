@@ -12,14 +12,16 @@ def auto_joiner(func):
     return wrapper
 
 
-class Column:
-    def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
-        self.UNIQUE = UNIQUE
-        self.PRIMARY_KEY = PRIMARY_KEY
-        self.DEFAULT = DEFAULT
-        self.REFERENCES = REFERENCES
+class OnGet:
+    def __init__(self):
         self._column_owner = None
 
+    def __get__(self, instance, owner):
+        self._column_owner = owner if self._column_owner is None else self._column_owner
+        return self
+
+
+class CreateTable(OnGet):
     @auto_joiner
     def table_create(self):
         if self._column_owner is not None:
@@ -32,16 +34,21 @@ class Column:
             ]
         return string
 
-    def __get__(self, instance, owner):
-        self._column_owner = owner if self._column_owner is None else self._column_owner
-        return self
-
     def table_create_referenced(self):
         column_name = self._column_name() if not hasattr(self, '_on_reference') else self._on_reference._column_name()
         string = [column_name,
             f"REFERENCES {self._column_owner._table_name}"
             ]
         return string
+
+
+class Column(CreateTable):
+    def __init__(self, UNIQUE=False, PRIMARY_KEY=False, DEFAULT=None, REFERENCES=None):
+        self.UNIQUE = UNIQUE
+        self.PRIMARY_KEY = PRIMARY_KEY
+        self.DEFAULT = DEFAULT
+        self.REFERENCES = REFERENCES
+        super().__init__()
 
     @classmethod
     def _column_name(cls):
